@@ -1,0 +1,37 @@
+#!/bin/sh
+# Runs orca-rice on Node 22 or newer if this Mac has it, otherwise on the Node that every Orca carries inside it.
+
+# This script's own folder, through any symlinks to it
+self=$0
+while [ -L "$self" ]; do
+  link=$(readlink "$self")
+  case $link in
+    /*) self=$link ;;
+    *) self=$(dirname "$self")/$link ;;
+  esac
+done
+here=$(cd "$(dirname "$self")" && pwd)
+
+if command -v node >/dev/null 2>&1; then
+  major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
+  if [ "$major" -ge 22 ] 2>/dev/null; then
+    exec node "$here/orca-rice.mjs" "$@"
+  fi
+fi
+
+# Orca's Node, only if Orca allows it (Electron's RunAsNode fuse, the first character after its marker): with the fuse
+# off, ELECTRON_RUN_AS_NODE is ignored and Orca's window would open instead
+app="${ORCA_RICE_APP:-/Applications/Orca.app}"
+orca="$app/Contents/MacOS/Orca"
+framework="$app/Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework"
+if [ -x "$orca" ] && [ -f "$framework" ]; then
+  at=$(LC_ALL=C grep -obUa 'dL7pKGdnNz796PbbjQWNKmHXBZaB9tsX' "$framework" 2>/dev/null | head -n 1 | cut -d: -f1)
+  if [ -n "$at" ]; then
+    fuse=$(dd if="$framework" bs=1 skip=$((at + 34)) count=1 2>/dev/null)
+    if [ "$fuse" = "1" ]; then
+      ELECTRON_RUN_AS_NODE=1 exec "$orca" "$here/orca-rice.mjs" "$@"
+    fi
+  fi
+fi
+echo "orca-rice: needs Node 22 or newer (https://nodejs.org), or an Orca that lets it use its own Node" >&2
+exit 1
