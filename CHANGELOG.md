@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1
+
+- First installs show each theme's own terminal colours and frame right away. Before, Orca's open window was not told
+  about the themes orca-rice had just imported, so it kept Orca's stock dark terminal until Orca restarted: dark themes
+  had a neutral frame, and light themes a dark grey one.
+- `uninstall` puts back Background Opacity, the sidebar and the terminal themes on an Orca that had never set them
+  (before, a fresh Orca was left with transparent, black terminals).
+- AGENTS.md: a tip for light themes (Claude Code's own colours: `/theme`).
+- Updating: `git pull`, then `bin/orca-rice repair` (the watcher changed).
+
 ## 0.2.0
 
 - Orca's agent spinners turn again: 0.1.0 held them still (a rule meant to save repaints overrode their spin).

@@ -76,6 +76,8 @@ Silicon) with Orca 1.4.221; on other versions, go ahead when `check` says ready.
   `retro-82` Night drive (CRT) · `lumon` Macrodata · `last-horizon` Planetrise · `miasma` Marsh lights ·
   `matte-black` Beacon · `solitude` Lighthouse · `vantablack` The void · `catppuccin-latte` Balloon morning (light) ·
   `flexoki-light` Ink mountains (light) · `lupine` Lupine meadow (light) · `white` Snowfield (light)
+- **Light themes** (`rose-pine`, `catppuccin-latte`, `flexoki-light`, `lupine`, `white`): Claude Code keeps its own
+  colours, so tell them that `/theme` in Claude Code, set to a light option, reads best on a light theme.
 - **Scene**: `on` (moving, 10 frames a second), `dim` (quieter), `still` (one frame, the lightest on battery and GPU:
   suggest it if they care about smoothness), or `off`.
 - **Shape**: `cards` (floating rounded cards, the look in the screenshots) or `square` (Orca's own layout, scene

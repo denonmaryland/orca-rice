@@ -39,6 +39,16 @@ test('the layer parses, and the watcher accepts every scene mode and carries the
   assert.match(layer, /payload\.chat = !!\(p && p\.chat === true\)/)
 })
 
+test('a fresh Orca: the imported themes reach the window with the theme, and unset settings are saved at their defaults', () => {
+  const code = orca.bootstrap()
+  // Orca's settings channel saves an import without telling the open window; the list goes with the theme
+  assert.match(code, /wc\.send\('settings:changed', \{ terminalCustomThemes: r\.themes, \.\.\.patch \}\)/)
+  // A setting never written reads as undefined; uninstall needs Orca's default to put back
+  assert.match(code, /terminalBackgroundOpacity \?\? 1/)
+  assert.match(code, /leftSidebarAppearanceMode \?\? 'default'/)
+  assert.match(code, /terminalThemeDark \?\? 'Ghostty Default Style Dark'/)
+})
+
 test("the layer leaves Orca's agent spinners turning, and carries nothing of anyone's own setup", () => {
   const layer = readFileSync(join(ROOT, 'layer', 'rice-layer.js'), 'utf8')
   // A transform on Orca's spinner overrides its spin: they stood still
