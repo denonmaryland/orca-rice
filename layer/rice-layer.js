@@ -19,9 +19,12 @@
 // terminal pane as a rounded tile (tinted, so text stays readable; the focused one ringed in the theme's two
 // accents) and the status bar as a pill. Without a scene the wallpaper is a glow in the accents. Layout only
 // through a stylesheet. In Orca's own shape the scene stays under the terminals, its corners following any
-// rounded card it sits in (Orca's floating terminal panel). dispose() takes everything away.
+// rounded card it sits in (Orca's floating terminal panel).
+//
+// Chat (payload.chat, orca-rice chat on|off): extras in Orca's chat views, from what its page already holds, each an
+// element of ours beside Orca's (see "The chat extras" below). dispose() takes everything away.
 ;(() => {
-  const V = 1
+  const V = 2
   const old = window.__riceScene
   if (old && old.v === V) return
   if (old) {
@@ -118,10 +121,6 @@ void main(){
   const FEEL = [
     `:root { --rice-ease: ${EASE}; --rice-pop: ${POP}; --default-transition-duration: 120ms; --default-transition-timing-function: ${EASE}; }`,
     'html, body { overscroll-behavior: none; }',
-    // Orca's agent spinners (sidebar and tabs) tick 12 times a second, painted into whatever layer holds them: with the
-    // sidebar that was the whole window, repainted 12 times a second while any agent worked (measured, CDP paint
-    // events: 36 window repaints in 3 s, none with this). A layer of their own; the same ticking spin
-    '.agent-working-spinner { transform: translateZ(0); will-change: transform; backface-visibility: hidden; }',
     'button:not(:disabled):active { scale: 0.97; }',
     '[data-worktree-card-surface] { transition-duration: 0.12s !important; transition-timing-function: var(--rice-ease) !important; }',
     '[class*="animate-in"][data-state="open"] { animation-duration: 0.17s !important; animation-timing-function: var(--rice-pop) !important; }',
@@ -377,12 +376,12 @@ void main(){
         `background: color-mix(in srgb, ${a1} 14%, var(--muted)) !important; box-shadow: inset 0 0 0 1px ${edge}; }`,
       `${C} .select-text.leading-relaxed:not(.italic):not(.text-xs) { line-height: 1.7 !important; color: ${fg(92)}; }`,
       // 3. The composer: rounder, lifted, the accent ring as it takes focus
-      `${C} [data-native-file-drop-target="composer"] { border-radius: 16px !important; border-color: transparent !important; ` +
+      `${C} [data-native-file-drop-target="composer"].rounded-lg { border-radius: 16px !important; border-color: transparent !important; ` +
         `box-shadow: ${lift}, inset 0 0 0 1px ${edge} !important; transition: box-shadow 0.18s var(--rice-ease); }`,
-      `${C} [data-native-file-drop-target="composer"]:focus-within { box-shadow: ${lift}, inset 0 0 0 1px color-mix(in srgb, ${a1} 60%, transparent), ` +
+      `${C} [data-native-file-drop-target="composer"].rounded-lg:focus-within { box-shadow: ${lift}, inset 0 0 0 1px color-mix(in srgb, ${a1} 60%, transparent), ` +
         `0 0 0 3px color-mix(in srgb, ${a1} 16%, transparent) !important; }`,
       // 4. Arrivals: a new row rises in, a fold's body unfolds under its button, a reply's new paragraph lands
-      `${C} [data-index][data-rice-new] > * { animation: rice-rise 0.36s var(--rice-pop) both; }`,
+      `${C} [data-index][data-rice-new] > * { animation: rice-rise 0.36s var(--rice-pop) both; animation-delay: var(--rice-d, 0ms); }`,
       `${C} [data-rice-opening] > button[aria-expanded="true"] ~ * { animation: rice-unfold 0.22s var(--rice-pop) both; }`,
       `${C} [data-rice-in] { animation: rice-land 0.42s var(--rice-ease) both; }`,
       // 5. Whatever is running shimmers: a band of the accent sweeping across muted text
@@ -411,6 +410,137 @@ void main(){
       `${C} button.rounded-full[class~="bg-card/90"] { box-shadow: ${lift}, inset 0 0 0 1px ${edge} !important; border-color: transparent !important; }`,
       `@media (prefers-reduced-motion: reduce) { ${C} [data-rice-new] > *, ${C} [data-rice-opening] > button ~ *, ${C} [data-rice-in] { animation: none !important; } ` +
         `${live} { animation: none !important; color: var(--foreground) !important; background: none !important; } }`,
+    ].join('\n')
+  }
+
+  // The chat extras' look (payload.chat): the working spinner as an orbit in the theme's accents, the comet, the
+  // parked-drafts menu, a turn's changed files, a plan, code colours, the copy button, the zoom, the selection bar,
+  // the stash, the welcome; Orca's own queue and message rail dressed to match; in Orca's own chat agents its model
+  // and effort pickers as chips beside the attach button, the context figures by its ring and its raw rows hidden
+  function extrasRule() {
+    if (!chatOn()) return ''
+    const C = '[data-native-chat-root]'
+    const H = '[data-structured-agent-session-overlay-tab-id]'
+    const HC = `${H} [data-native-file-drop-target="composer"] [data-native-file-drop-target="composer"]`
+    const a1 = payload?.accent?.[0] ?? 'var(--ring)'
+    const a2 = payload?.accent?.[1] ?? a1
+    const red = payload?.signal?.[2] ?? 'var(--destructive)'
+    const mint = payload?.signal?.[1] ?? '#7ee6b8'
+    const amber = payload?.signal?.[0] ?? '#ffb347'
+    const fg = (p) => `color-mix(in srgb, var(--foreground) ${p}%, transparent)`
+    const edge = fg(12)
+    return [
+      '@keyframes rice-orbit { to { transform: rotate(360deg); } }',
+      '@keyframes rice-comet { 0% { transform: translateX(-100%); opacity: 0; } 8% { opacity: 1; } 62% { opacity: 1; } 70%, 100% { transform: translateX(150px); opacity: 0; } }',
+      '@keyframes rice-pop-in { from { opacity: 0; transform: translateY(4px) scale(0.98); } }',
+      '@keyframes rice-fade { from { opacity: 0; } }',
+      `${C} [data-native-chat-turn-activity] > svg { display: none !important; }`,
+      `${C} [data-native-chat-turn-activity]::before { content: ''; width: 15px; height: 15px; flex-shrink: 0; border-radius: 50%; ` +
+        `background: conic-gradient(from 0deg, transparent 0 22%, color-mix(in srgb, ${a2} 75%, transparent) 62%, ${a1} 97%, transparent 97%); ` +
+        '-webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.6px), #000 calc(100% - 2.2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 2.6px), #000 calc(100% - 2.2px)); ' +
+        'animation: rice-orbit 0.85s linear infinite; will-change: transform; }',
+      `.rice-menu-item:focus-visible, .rice-stash:focus-visible, .rice-hero-starter:focus-visible { outline: 2px solid ${a1}; outline-offset: 1px; }`,
+      `.rice-menu { position: fixed; z-index: 10000; min-width: 220px; padding: 6px; border-radius: 12px; color: var(--foreground); font-size: 13px; ` +
+        `background: color-mix(in srgb, var(--popover, var(--background)) 92%, transparent); -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); ` +
+        `box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.6), inset 0 0 0 1px ${edge}; animation: rice-pop-in 0.16s var(--rice-pop) both; }`,
+      '.rice-menu { max-height: min(62vh, 560px); overflow-y: auto; }',
+      '.rice-menu-title { padding: 4px 8px 6px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-foreground); }',
+      `.rice-menu-note { margin: 0 4px 6px; padding: 6px 8px; border-radius: 8px; font-size: 12px; color: ${amber}; background: color-mix(in srgb, ${amber} 10%, transparent); }`,
+      '.rice-menu-item { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 6px; width: 100%; padding: 6px 8px; border: 0; border-radius: 8px; ' +
+        'font: inherit; text-align: left; color: inherit; background: none; cursor: pointer; }',
+      `.rice-menu-item:hover:not(:disabled) { background: ${fg(8)}; }`,
+      '.rice-menu-item:disabled { opacity: 0.45; cursor: default; }',
+      `.rice-menu-mark { color: ${a1}; text-align: center; font-size: 12px; }`,
+      '.rice-menu-hint { font-size: 11px; color: var(--muted-foreground); }',
+      '.rice-comet { position: relative; height: 0; z-index: 1; pointer-events: none; }',
+      '.rice-comet-track { position: absolute; left: 14px; right: 14px; top: -6px; height: 12px; overflow: hidden; opacity: 0; transition: opacity 0.5s var(--rice-ease); ' +
+        '-webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }',
+      `.rice-comet-spark { position: absolute; inset: 0; --rice-head: ${a1}; --rice-tail: ${a2}; }`,
+      '.rice-comet-spark::before { content: \'\'; position: absolute; right: 5px; top: 5px; width: 150px; height: 2px; border-radius: 2px; ' +
+        'background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--rice-tail) 70%, transparent) 62%, var(--rice-head)); }',
+      '.rice-comet-spark::after { content: \'\'; position: absolute; right: 0; top: 0; width: 12px; height: 12px; border-radius: 50%; ' +
+        'background: radial-gradient(circle, #fff 0 16%, var(--rice-head) 40%, transparent 70%); }',
+      '[data-rice-beat="working"] > .rice-comet .rice-comet-track { opacity: 1; }',
+      '[data-rice-beat="working"] > .rice-comet .rice-comet-spark, [data-rice-beat="done"] > .rice-comet .rice-comet-spark { will-change: transform, opacity; animation: rice-comet 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite; }',
+      `[data-rice-beat="done"] > .rice-comet .rice-comet-spark { --rice-head: ${mint}; --rice-tail: ${mint}; }`,
+      '[data-rice-beat="done"] > .rice-comet .rice-comet-track { opacity: 0; transition-duration: 2s; }',
+      '.rice-blur .rice-comet-spark, .rice-blur [data-native-chat-turn-activity]::before { animation-play-state: paused !important; }',
+      '.rice-run-caret { display: inline-grid; place-items: center; width: 14px; flex-shrink: 0; color: var(--muted-foreground); transition: transform 0.15s var(--rice-ease); }',
+      '[aria-expanded="true"] > .rice-run-caret { transform: rotate(90deg); }',
+      `${C} [data-native-file-drop-target="composer"] .justify-between { flex-wrap: wrap; row-gap: 6px; }`,
+      `${C} [data-native-file-drop-target="composer"] .justify-between > :first-child { flex-shrink: 0; }`,
+      `.rice-files { margin-top: 12px; max-width: 100%; overflow: hidden; border-radius: 12px; background: ${fg(4)}; box-shadow: inset 0 0 0 1px ${edge}; }`,
+      `.rice-files-head, .rice-file-head { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; font: inherit; text-align: left; color: ${fg(85)}; cursor: pointer; }`,
+      '.rice-files-head { padding: 8px 12px; font-size: 12.5px; }',
+      `.rice-files-head:hover, .rice-file-head:hover { background: ${fg(5)}; }`,
+      `.rice-files-icon { color: ${a1}; }`,
+      '.rice-files-title { flex: 1; font-weight: 500; }',
+      `.rice-add, .rice-del { font: 11.5px ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }`,
+      `.rice-add { color: ${mint}; }`,
+      `.rice-del { color: ${red}; }`,
+      `.rice-files-list { padding: 4px 0; border-top: 1px solid ${edge}; }`,
+      '.rice-file-head { padding: 5px 12px 5px 30px; font-size: 12.5px; }',
+      `.rice-file-name { font: 12px ui-monospace, 'SF Mono', Menlo, monospace; color: ${fg(92)}; white-space: nowrap; }`,
+      '.rice-file-dir { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--muted-foreground); }',
+      `.rice-diff { margin: 2px 12px 8px 30px; padding: 8px 10px; max-height: 300px; overflow: auto; border-radius: 8px; white-space: pre; font: 11.5px/1.55 ui-monospace, 'SF Mono', Menlo, monospace; background: ${fg(5)}; }`,
+      `.rice-diff-add { color: ${mint}; }`,
+      `.rice-diff-del { color: ${red}; }`,
+      '.rice-diff-gap { color: var(--muted-foreground); }',
+      `.rice-plan { margin-top: 12px; padding: 12px 16px 14px; border-radius: 12px; background: color-mix(in srgb, ${a1} 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, ${a1} 30%, transparent); }`,
+      `.rice-plan-head { margin-bottom: 6px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: ${a1}; }`,
+      `::highlight(rice-kw), ::highlight(rice-tag) { color: ${a1}; }`,
+      `::highlight(rice-str), ::highlight(rice-add) { color: ${mint}; }`,
+      `::highlight(rice-num), ::highlight(rice-var) { color: ${amber}; }`,
+      `::highlight(rice-com) { color: ${fg(42)}; }`,
+      `::highlight(rice-fn) { color: ${a2}; }`,
+      `::highlight(rice-prop) { color: color-mix(in srgb, ${a2} 60%, var(--foreground)); }`,
+      `::highlight(rice-del) { color: ${red}; }`,
+      `.rice-copy { position: absolute; top: -6px; right: 0; z-index: 2; padding: 2px 8px; border: 0; border-radius: 6px; font: inherit; font-size: 11px; color: ${fg(72)}; opacity: 0; user-select: none; ` +
+        `background: color-mix(in srgb, var(--background) 85%, transparent); box-shadow: inset 0 0 0 1px ${edge}; cursor: pointer; transition: opacity 0.15s var(--rice-ease); }`,
+      '.select-text:hover > .rice-copy, .rice-copy:focus-visible { opacity: 1; }',
+      `.rice-copy:hover { color: var(--foreground); background: color-mix(in srgb, ${a1} 18%, var(--background)); }`,
+      `${C} img, ${C} .mermaid-block svg { cursor: zoom-in; }`,
+      '.rice-lightbox { position: fixed; inset: 0; z-index: 10001; display: grid; place-items: center; padding: 4vh 4vw; cursor: zoom-out; background: rgba(0, 0, 0, 0.72); ' +
+        '-webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: rice-fade 0.16s var(--rice-ease) both; }',
+      '.rice-lightbox-item { max-width: 92vw; max-height: 88vh; width: auto; height: auto; border-radius: 10px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5); animation: rice-pop-in 0.2s var(--rice-pop) both; }',
+      'svg.rice-lightbox-item { width: min(92vw, 1400px); padding: 18px; background: var(--background); }',
+      `.rice-selbar { position: fixed; z-index: 10000; display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: color-mix(in srgb, var(--popover, var(--background)) 92%, transparent); ` +
+        `-webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.6), inset 0 0 0 1px ${edge}; animation: rice-pop-in 0.14s var(--rice-pop) both; }`,
+      '.rice-selbar-btn { height: 26px; padding: 0 10px; border: 0; border-radius: 7px; font: inherit; font-size: 12px; color: var(--foreground); background: none; cursor: pointer; }',
+      `.rice-selbar-btn:hover { background: ${fg(9)}; }`,
+      `.rice-stash { display: inline-flex; align-items: center; gap: 4px; height: 24px; min-width: 24px; padding: 0 7px; margin-left: 2px; border: 0; border-radius: 999px; font: inherit; font-size: 12px; ` +
+        `color: ${fg(66)}; background: none; cursor: pointer; transition: background-color 0.12s var(--rice-ease); }`,
+      `.rice-stash:hover { color: var(--foreground); background: ${fg(8)}; }`,
+      `.rice-stash-n { font-size: 11px; color: ${a1}; font-variant-numeric: tabular-nums; }`,
+      '.rice-stash-n:empty { display: none; }',
+      `${C} [data-rice-welcome] > p.font-medium { font-size: 22px !important; font-weight: 600; letter-spacing: -0.01em; }`,
+      `${C} [data-rice-welcome] > div:first-child { color: ${a1} !important; background: color-mix(in srgb, ${a1} 16%, transparent) !important; box-shadow: 0 0 28px -6px ${a1}; }`,
+      '.rice-hero { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-top: 10px; animation: rice-rise 0.5s var(--rice-pop) both; }',
+      '.rice-hero-where { font-size: 12px; letter-spacing: 0.02em; color: var(--muted-foreground); }',
+      '.rice-hero-starters { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 520px; }',
+      `.rice-hero-starter { padding: 7px 13px; border: 0; border-radius: 999px; font: inherit; font-size: 12.5px; color: ${fg(85)}; background: ${fg(6)}; box-shadow: inset 0 0 0 1px ${edge}; cursor: pointer; ` +
+        'transition: background-color 0.12s var(--rice-ease), transform 0.12s var(--rice-ease); }',
+      `.rice-hero-starter:hover { background: ${fg(11)}; transform: translateY(-1px); }`,
+      `${C} [aria-label="Queued messages"] { border-radius: 14px; padding: 6px; background: color-mix(in srgb, ${a1} 6%, transparent); box-shadow: inset 0 0 0 1px ${edge}; }`,
+      `${C} button[data-native-chat-rail] > span.w-5 { background: ${a1} !important; box-shadow: 0 0 8px color-mix(in srgb, ${a1} 60%, transparent); }`,
+      `[aria-label="Your messages"]:not(button) { border-radius: 12px !important; background: color-mix(in srgb, var(--popover, var(--background)) 90%, transparent) !important; ` +
+        `-webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3); box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.6), inset 0 0 0 1px ${edge} !important; }`,
+      '@media (prefers-reduced-motion: reduce) { .rice-hero, .rice-lightbox, .rice-lightbox-item, .rice-selbar { animation: none !important; } }',
+      `${HC} .justify-between > .ml-auto { display: contents; }`,
+      `${HC} .justify-between > .ml-auto > :first-child { gap: 4px !important; margin-left: 6px; }`,
+      `${HC} .justify-between > .ml-auto > :nth-child(2) { margin-left: auto; }`,
+      `${HC} .justify-between button:is([aria-label^="Model "], [aria-label^="Effort "]) { height: 24px !important; padding: 0 8px !important; gap: 6px !important; border-radius: 999px !important; ` +
+        `font-size: 12px !important; color: ${fg(82)} !important; background: ${fg(6)} !important; box-shadow: inset 0 0 0 1px ${edge}; transition: background-color 0.12s var(--rice-ease); }`,
+      `${HC} .justify-between button:is([aria-label^="Model "], [aria-label^="Effort "]):hover { background: ${fg(11)} !important; }`,
+      `${HC} .justify-between button:is([aria-label^="Model "], [aria-label^="Effort "]) > svg { opacity: 0.5; }`,
+      `${HC} .justify-between button[aria-label^="Model "]::before { content: ''; width: 12px; height: 12px; flex-shrink: 0; background: ${ICON.claude} center / 12px 12px no-repeat; }`,
+      `${HC} .justify-between button:is([aria-label^="Model GPT"], [aria-label*="Codex"])::before { background-image: ${ICON.codex}; }`,
+      `${HC} .justify-between button[aria-label^="Effort "]::before { width: 12px; flex-shrink: 0; text-align: center; font-size: 10px; line-height: 1; color: ${a1}; }`,
+      ...[['Low', '◔'], ['Medium', '◑'], ['High', '◕'], ['Extra high', '●'], ['Max', '✦']].map(([l, g]) => `${HC} .justify-between button[aria-label="Effort ${l}"]::before { content: '${g}'; }`),
+      `${H} [data-rice-noise] { display: none !important; }`,
+      `${H} [data-rice-sctx]::after { content: attr(data-rice-sctx); display: inline-flex; align-items: center; height: 28px; padding: 0 4px 0 2px; font-size: 12px; white-space: nowrap; ` +
+        'font-variant-numeric: tabular-nums; color: var(--muted-foreground); }',
+      '@media (prefers-reduced-motion: reduce) { .rice-comet-spark, .rice-menu { animation: none !important; } }',
     ].join('\n')
   }
 
@@ -463,7 +593,7 @@ void main(){
     const rules = [`${HOST} .xterm-viewport { background: transparent !important; }`, MOTION, FEEL]
     if (fill) rules.push(`${HOST} [data-terminal-layout-leaf-ids] { background: ${fill} !important; }`)
     const tc = terminalColours()
-    rules.push(sidebarRule(tc), frameRule(tc), chatRule(), cardsRule(tc?.t ?? terminalBg(), tc?.n ?? payload.fg ?? '#fafafa'), crtRule(tc?.n ?? payload.fg ?? '#fafafa'))
+    rules.push(sidebarRule(tc), frameRule(tc), chatRule(), extrasRule(), cardsRule(tc?.t ?? terminalBg(), tc?.n ?? payload.fg ?? '#fafafa'), crtRule(tc?.n ?? payload.fg ?? '#fafafa'))
     return rules.filter(Boolean).join('\n')
   }
 
@@ -617,12 +747,16 @@ void main(){
       const max = chatMax.get(win) ?? -1
       const opening = performance.now() - chatToggleAt < 400
       let top = max
+      let k = 0
       for (const m of list) {
         if (m.target !== win) continue
         for (const row of m.addedNodes) {
           const i = row.nodeType === 1 ? Number(row.getAttribute('data-index')) : NaN
           if (!Number.isFinite(i)) continue
-          if ((i > max && i <= max + 3) || opening) stamp(row, 'data-rice-new', 600)
+          // Rows a fold brings in rise one after another, not all at once
+          if (opening) row.style.setProperty('--rice-d', `${Math.min(k++, 12) * 28}ms`)
+          else if (row.style.getPropertyValue('--rice-d')) row.style.removeProperty('--rice-d')
+          if ((i > max && i <= max + 3) || opening) stamp(row, 'data-rice-new', opening ? 950 : 600)
           if (i > top) top = i
         }
       }
@@ -652,6 +786,770 @@ void main(){
       rowWatch.observe(win, { childList: true })
     }
     followLive()
+  }
+
+  // ===== The chat extras (payload.chat, orca-rice chat on|off), in Orca's chat views: the terminal sessions Orca shows
+  // as a chat and its own Claude and Codex chats. Every finished turn left open; Orca's own model and effort pickers
+  // dressed as chips, with the context figures by its ring; a comet over the composer while the agent works; Orca's
+  // raw event rows hidden; and a chat app's comforts (after T3 Code's chat): each turn's changed files, plans as
+  // cards, code in the theme's colours, a copy button on each reply, a zoom for images and diagrams, actions on
+  // selected text, a draft stash, a welcome for a new chat. Each reads only what Orca's page already holds and adds
+  // elements of its own beside Orca's, never rewriting Orca's own; chatOff() takes them all out again
+  const chatOn = () => payload !== null && payload.chat === true
+  const ICON = {
+    claude: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg stroke='%23d97757' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M8 1.5v13M1.5 8h13M3.4 3.4l9.2 9.2M12.6 3.4l-9.2 9.2'/%3E%3C/g%3E%3C/svg%3E\")",
+    codex: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.8l5.4 3.1v6.2L8 14.2l-5.4-3.1V4.9z' fill='none' stroke='%2310a37f' stroke-width='1.8' stroke-linejoin='round'/%3E%3C/svg%3E\")",
+  }
+  const setAttr = (el, name, v) => { if (el.getAttribute(name) !== v) v ? el.setAttribute(name, v) : el.removeAttribute(name) }
+  const setText = (e, t) => { if (e.textContent !== t) e.textContent = t }
+  const el = (tag, cls, text) => {
+    const e = document.createElement(tag)
+    if (cls) e.className = cls
+    if (text !== undefined) e.textContent = text
+    return e
+  }
+  const ago = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s` }
+  // A terminal pane's key (tab:leaf), for a chat view over a terminal session
+  function paneOf(shell) {
+    const pane = shell.closest('.pane')
+    const tab = pane?.closest('[data-terminal-tab-id]')?.getAttribute('data-terminal-tab-id')
+    const leaf = pane?.getAttribute('data-leaf-id')
+    return { key: tab && leaf ? `${tab}:${leaf}` : '' }
+  }
+  const working = (host) => host.querySelector('[data-native-chat-root]')?.getAttribute('data-native-chat-working') === 'true'
+  // A chat view's own name: Orca's agent chat tab, or the terminal pane's key
+  const chatId = (host) => host.getAttribute('data-structured-agent-session-overlay-tab-id') || paneOf(host).key || 'chat'
+  // Orca's composer is a rich-text editor (TipTap/ProseMirror, role=textbox); a plain text field elsewhere. Orca marks
+  // two elements as the composer's drop target: the whole chat body and the composer box inside it; the box is the
+  // innermost
+  const INPUT = 'textarea, [role="textbox"][contenteditable="true"]'
+  const textOf = (ta) => (ta.tagName === 'TEXTAREA' ? ta.value : ta.innerText ?? '')
+  function boxOf(host) {
+    return [...host.querySelectorAll('[data-native-file-drop-target="composer"]')].find((d) => !d.querySelector('[data-native-file-drop-target="composer"]')) ?? null
+  }
+
+  // A menu over its button (the parked drafts): items with a tick on the current one, or a note when there are none
+  let menu = null
+  function closeMenu() {
+    menu?.remove()
+    menu = null
+  }
+  function openMenu(btn, title, items, note) {
+    closeMenu()
+    menu = el('div', 'rice-menu')
+    menu.setAttribute('role', 'menu')
+    menu.append(el('div', 'rice-menu-title', title))
+    if (note) menu.append(el('div', 'rice-menu-note', note))
+    for (const it of items) {
+      const b = el('button', 'rice-menu-item')
+      b.type = 'button'
+      b.setAttribute('role', 'menuitem')
+      b.disabled = !!it.off
+      b.append(el('span', 'rice-menu-mark', it.glyph ?? ''), el('span', 'rice-menu-name', it.label))
+      if (it.hint) b.append(el('span', 'rice-menu-hint', it.hint))
+      b.addEventListener('click', () => { closeMenu(); it.run() })
+      menu.append(b)
+    }
+    ;(document.querySelector('.app-layout') ?? document.body).append(menu)
+    const r = btn.getBoundingClientRect()
+    menu.style.left = `${Math.max(8, Math.min(r.left, innerWidth - menu.offsetWidth - 8))}px`
+    menu.style.bottom = `${innerHeight - r.top + 6}px`
+    menu.querySelector('button:not(:disabled)')?.focus({ preventScroll: true })
+  }
+  const onAway = (e) => { if (menu && !menu.contains(e.target) && !e.target.closest?.('.rice-stash')) closeMenu() }
+  const onEscape = (e) => {
+    if (e.key !== 'Escape') return
+    hideSelBar()
+    if (lightbox) { closeLightbox(); e.stopPropagation() } else if (menu) { closeMenu(); e.stopPropagation() }
+  }
+  addEventListener('pointerdown', onAway, true)
+  addEventListener('keydown', onEscape, true)
+
+  // Markdown as Orca's chat renders it (its classes from react-markdown's map), built as elements: text is only ever
+  // set as text. Paragraphs, headings, lists (nested by indent), quotes, rules, tables, fenced code with its language,
+  // and inline code, bold, italics and links
+  const FENCE = /^\s*(```|~~~)\s*([\w+#.-]*)/
+  function md(text, into) {
+    const lines = String(text).replace(/\r/g, '').split('\n')
+    let para = []
+    const flush = () => {
+      if (para.length === 0) return
+      const p = el('p', 'my-2 first:mt-0 last:mb-0')
+      inline(p, para.join(' '))
+      into.append(p)
+      para = []
+    }
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const fence = FENCE.exec(line)
+      if (fence) {
+        flush()
+        const code = []
+        for (i++; i < lines.length && !lines[i].trim().startsWith(fence[1]); i++) code.push(lines[i])
+        if (fence[2]) {
+          const box = el('div', 'group/code relative my-3 min-w-0 max-w-full overflow-hidden rounded-md bg-accent')
+          const bar = el('div', 'flex h-9 items-center justify-between border-b border-border/60 px-3')
+          bar.append(el('span', 'font-mono text-[11px] text-muted-foreground', fence[2]))
+          box.append(bar, el('pre', 'm-0 max-h-80 overflow-x-auto p-3 font-mono text-[12px]', code.join('\n')))
+          into.append(box)
+        } else into.append(el('pre', 'my-3 max-h-80 max-w-full overflow-x-auto rounded-md bg-accent p-3 font-mono text-[12px]', code.join('\n')))
+        continue
+      }
+      if (!line.trim()) { flush(); continue }
+      const h = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/.exec(line)
+      if (h) {
+        flush()
+        const cls = ['mb-2 mt-4 text-[18px] font-semibold leading-tight first:mt-0', 'mb-2 mt-4 text-[16px] font-semibold leading-tight first:mt-0', 'mb-2 mt-3 text-[15px] font-semibold leading-tight first:mt-0'][h[1].length - 1] ?? 'mb-1 mt-3 font-semibold first:mt-0'
+        const e = el(`h${h[1].length}`, cls)
+        inline(e, h[2])
+        into.append(e)
+        continue
+      }
+      if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(line)) { flush(); into.append(el('hr', 'my-4 border-border/60')); continue }
+      if (/^\s{0,3}>/.test(line)) {
+        flush()
+        const q = []
+        for (; i < lines.length && /^\s{0,3}>/.test(lines[i]); i++) q.push(lines[i].replace(/^\s{0,3}>\s?/, ''))
+        i--
+        const e = el('blockquote', 'my-3 border-l-2 border-border/70 pl-3 text-muted-foreground')
+        md(q.join('\n'), e)
+        into.append(e)
+        continue
+      }
+      if (/^\s*\|/.test(line) && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1] ?? '')) {
+        flush()
+        const cells = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim())
+        const wrap = el('div', 'my-3 max-w-full overflow-x-auto rounded-md border border-border/60')
+        const table = el('table', 'min-w-full border-collapse text-[13px] [&_td]:border [&_td]:border-border/50 [&_td]:px-2 [&_td]:py-1.5 [&_th]:border [&_th]:border-border/50 [&_th]:bg-muted/60 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold')
+        const tr = el('tr')
+        for (const c of cells(line)) { const th = el('th'); inline(th, c); tr.append(th) }
+        const thead = el('thead')
+        thead.append(tr)
+        const tbody = el('tbody')
+        for (i += 2; i < lines.length && /^\s*\|/.test(lines[i]); i++) {
+          const r = el('tr')
+          for (const c of cells(lines[i])) { const td = el('td'); inline(td, c); r.append(td) }
+          tbody.append(r)
+        }
+        i--
+        table.append(thead, tbody)
+        wrap.append(table)
+        into.append(wrap)
+        continue
+      }
+      const item = /^(\s*)([-*+]|\d{1,3}[.)])\s+(.*)$/.exec(line)
+      if (item) {
+        flush()
+        const ordered = /\d/.test(item[2])
+        const list = el(ordered ? 'ol' : 'ul', ordered ? 'my-2 ml-5 list-decimal space-y-1' : 'my-2 ml-5 list-disc space-y-1')
+        if (ordered && parseInt(item[2], 10) !== 1) list.start = parseInt(item[2], 10)
+        const base = item[1].length
+        for (; i < lines.length; i++) {
+          const m = /^(\s*)([-*+]|\d{1,3}[.)])\s+(.*)$/.exec(lines[i])
+          if (!m || m[1].length !== base || /\d/.test(m[2]) !== ordered) break
+          const li = el('li', 'leading-relaxed')
+          inline(li, m[3])
+          // Lines indented past the marker belong to the item (a blank among them too, when more of them follow)
+          const off = m[0].length - m[3].length
+          const sub = []
+          while (i + 1 < lines.length) {
+            const ind = lines[i + 1].search(/\S/)
+            if (ind > base) { sub.push(lines[i + 1].slice(Math.min(ind, off))); i++ }
+            else if (ind < 0 && (lines[i + 2] ?? '').search(/\S/) > base) { sub.push(''); i++ }
+            else break
+          }
+          if (sub.length) md(sub.join('\n'), li)
+          list.append(li)
+          if (lines[i + 1]?.trim() === '' && /^(\s*)([-*+]|\d{1,3}[.)])\s+/.test(lines[i + 2] ?? '')) i++
+        }
+        i--
+        into.append(list)
+        continue
+      }
+      para.push(line.trim())
+    }
+    flush()
+    return into
+  }
+  const INLINE = /(`+)([\s\S]*?[^`])\1(?!`)|\*\*([^*]+?)\*\*|__([^_]+?)__|(?<![\w*])\*([^*\s](?:[^*]*[^*\s])?)\*(?![\w*])|(?<![\w_])_([^_\s](?:[^_]*[^_\s])?)_(?![\w_])|\[([^\]]+)\]\(([^)\s]+)\)/g
+  function inline(into, text) {
+    let at = 0
+    for (const m of text.matchAll(INLINE)) {
+      if (m.index > at) into.append(document.createTextNode(text.slice(at, m.index)))
+      at = m.index + m[0].length
+      if (m[1]) into.append(el('code', 'rounded bg-accent px-1.5 py-0.5 font-mono text-[0.92em] [overflow-wrap:anywhere]', m[2].replace(/^ (.*) $/, '$1')))
+      else if (m[3] || m[4]) { const b = el('strong'); inline(b, m[3] || m[4]); into.append(b) }
+      else if (m[5] || m[6]) { const e = el('em'); inline(e, m[5] || m[6]); into.append(e) }
+      else {
+        const a = el('a', 'break-all text-primary underline underline-offset-2 hover:text-primary/80')
+        inline(a, m[7])
+        if (/^https?:\/\//i.test(m[8])) {
+          a.href = m[8]
+          a.addEventListener('click', (e) => { e.preventDefault(); window.api?.shell?.openUrl?.(m[8])?.catch?.(() => {}) })
+        }
+        into.append(a)
+      }
+    }
+    if (at < text.length) into.append(document.createTextNode(text.slice(at)))
+  }
+
+  // Orca folds a finished turn: its last message stays and every other one, replies included, waits behind "Worked
+  // for…" until clicked. Every finished turn is opened, through the handler Orca's own "Worked for…" button calls (the
+  // chat's list carries it in its React props beside every turn it holds), so turns scrolled out of view open too,
+  // whose button Orca hasn't drawn. Orca's handler updates from its latest state, so several open in one go; each
+  // turn is opened at most once per chat view (Orca starts again from folded when a chat view is drawn anew, and so
+  // does this), and a turn closed by hand stays closed. Where those props aren't found (a newer Orca), the buttons on
+  // screen are clicked instead
+  const fiberOf = (e) => { const k = e ? Object.keys(e).find((x) => x.startsWith('__reactFiber')) : undefined; return k ? e[k] : null }
+  function propsUp(e, test, depth) {
+    for (let f = fiberOf(e), d = 0; f && d < depth; f = f.return, d++) { const p = f.memoizedProps; if (p && typeof p === 'object' && test(p)) return p }
+    return null
+  }
+  const closedTurns = new Set()
+  const openedBy = new WeakMap()
+  const openedFor = (fn) => { let s = openedBy.get(fn); if (!s) openedBy.set(fn, (s = new Set())); return s }
+  const clicked = new WeakSet()
+  const keyOfStatus = (b) => propsUp(b, (p) => p.slot && 'turnKey' in p.slot, 6)?.slot.turnKey ?? (b.closest('[data-index]')?.textContent ?? '').slice(0, 300)
+  const onTurnClick = (e) => {
+    if (!chatOn() || !e.isTrusted) return
+    const b = e.target instanceof Element ? e.target.closest('[data-native-chat-root] button[data-native-chat-turn-status]') : null
+    if (!b) return
+    const k = keyOfStatus(b)
+    if (b.getAttribute('aria-expanded') === 'true') closedTurns.add(k)
+    else {
+      closedTurns.delete(k)
+      const fn = propsUp(b, (p) => p.context && typeof p.context.onToggleExpandedTurn === 'function', 6)?.context.onToggleExpandedTurn
+      if (fn) openedFor(fn).add(k)
+    }
+  }
+  document.addEventListener('click', onTurnClick, true)
+  function openTurns() {
+    for (const win of document.querySelectorAll('[data-native-chat-root] [data-native-chat-window]')) {
+      if (win.offsetParent === null) continue
+      const list = propsUp(win, (p) => Array.isArray(p.slots) && p.context, 3)
+      const ctx = list?.context
+      if (ctx && typeof ctx.onToggleExpandedTurn === 'function' && ctx.expandedTurnIds instanceof Set) {
+        const opened = openedFor(ctx.onToggleExpandedTurn)
+        for (const sl of list.slots) {
+          const k = sl?.turnFolds ? sl.turnKey : undefined
+          if (k === undefined || opened.has(k) || ctx.expandedTurnIds.has(k) || closedTurns.has(k)) continue
+          opened.add(k)
+          ctx.onToggleExpandedTurn(k)
+        }
+        continue
+      }
+      for (const b of win.querySelectorAll('button[data-native-chat-turn-status="settled"][aria-expanded="false"]')) {
+        if (clicked.has(b) || closedTurns.has(keyOfStatus(b))) continue
+        clicked.add(b)
+        b.click()
+      }
+    }
+  }
+
+  // The comet: a beam of the two accents crossing the composer's top edge while the agent works, mint as a turn lands,
+  // then gone (nothing runs at rest). A line of no height of ours just before Orca's composer box
+  const comets = new WeakMap()
+  function markComet(host, now) {
+    const drop = boxOf(host)
+    const wrap = drop?.parentElement
+    if (!wrap) return null
+    let c = comets.get(host)
+    if (!c) {
+      const track = el('div', 'rice-comet-track')
+      track.append(el('div', 'rice-comet-spark'))
+      c = { el: el('div', 'rice-comet') }
+      c.el.append(track)
+      comets.set(host, c)
+    }
+    if (c.el.nextElementSibling !== drop) wrap.insertBefore(c.el, drop)
+    const busy = working(host)
+    if (c.wasBusy && !busy) c.doneAt = now
+    c.wasBusy = busy
+    setAttr(wrap, 'data-rice-beat', busy ? 'working' : now - (c.doneAt ?? -1e9) < 2200 ? 'done' : 'idle')
+    return drop
+  }
+
+  // The composers: the comet over each; in Orca's own chat agents also the figures by Orca's context ring ("Context
+  // 44.1k of 1M tokens, 4% used" becomes "4% · 44.1k / 1M") and the compactions from the compaction notices among what
+  // the chat holds (its model and effort pickers are dressed as chips by extrasRule)
+  function markComposers() {
+    const now = performance.now()
+    for (const shell of document.querySelectorAll('.native-chat-pane-shell')) if (shell.getBoundingClientRect().width > 0) markComet(shell, now)
+    for (const host of document.querySelectorAll('[data-structured-agent-session-overlay-tab-id]')) {
+      if (host.getBoundingClientRect().width === 0) continue
+      const drop = markComet(host, now)
+      if (!drop) continue
+      const ring = drop.querySelector('[data-native-chat-context-usage]')
+      const m = /Context ([\d.]+[kKmM]?) of ([\d.]+[kKmM]?) tokens?, ([\d.]+)% used/.exec(ring?.getAttribute('aria-label') ?? '')
+      const win = host.querySelector('[data-native-chat-window]')
+      const list = win ? propsUp(win, (p) => Array.isArray(p.slots), 3) : null
+      const compacts = list ? list.slots.filter((sl) => (sl?.message?.blocks ?? []).some((b) => b?.presentation === 'compaction' || /compact_boundary/.test(b?.text ?? ''))).length : null
+      const figures = m ? `${Math.round(+m[3])}% · ${m[1]} / ${m[2]}` + (compacts === null ? '' : compacts === 0 ? ' · no compactions' : ` · ${compacts} compaction${compacts === 1 ? '' : 's'}`) : ''
+      if (ring?.parentElement) setAttr(ring.parentElement, 'data-rice-sctx', figures)
+    }
+    document.documentElement.classList.toggle('rice-blur', !document.hasFocus())
+  }
+
+  // Orca prints the events it doesn't know from a newer Claude Code as raw rows: "claude · message:system:ui_invalidate"
+  // and "ui_status" (plugin repaint and status signals), and counts those past eight a turn in a row of its own.
+  // Neither says anything to a person, so those rows are hidden, matched exactly; any other raw row still shows (the
+  // session's "init" notice too: it can carry a failed MCP server)
+  const NOISE = /^›?\s*claude\s*·?\s*message:system:(ui_invalidate|ui_status)$/
+  const NOISE_COUNT = /^\d+ more provider notifications? not shown (for this turn|across evicted turns)$/
+  function hideNoise() {
+    for (const host of document.querySelectorAll('[data-structured-agent-session-overlay-tab-id]')) {
+      if (host.getBoundingClientRect().width === 0) continue
+      for (const row of host.querySelectorAll('[data-native-chat-window] > [data-index]')) {
+        const sum = row.querySelector('details > summary')
+        const all = (row.textContent ?? '').trim()
+        const head = sum ? sum.textContent.replace(/\s+/g, ' ').trim() : ''
+        const noise = (sum && NOISE.test(head) && row.querySelectorAll('details').length === 1 && all.startsWith(sum.textContent.trim())) || (all.length < 90 && NOISE_COUNT.test(all))
+        setAttr(row, 'data-rice-noise', noise ? '1' : '')
+      }
+    }
+  }
+
+  // The comforts read what Orca's chat already holds: its list's slots (React props), by data-index; the code colours
+  // are painted over the text (CSS highlights), not woven into it
+  const msgText = (m) => (m?.blocks ?? []).filter((b) => b?.type === 'text' && typeof b.text === 'string').map((b) => b.text).join('\n\n')
+  // The chat views on screen: the root, the window of rows, the element holding them (a terminal pane's shell or an
+  // agent chat's host) and Orca's slots
+  function chatsOnScreen() {
+    const out = []
+    for (const root of document.querySelectorAll('[data-native-chat-root]')) {
+      if (root.getBoundingClientRect().width === 0) continue
+      const win = root.querySelector('[data-native-chat-window]')
+      const host = root.closest('.native-chat-pane-shell, [data-structured-agent-session-overlay-tab-id]')
+      if (!host) continue
+      const list = win ? propsUp(win, (p) => Array.isArray(p.slots), 3) : null
+      out.push({ root, win, host, slots: list?.slots ?? null })
+    }
+    return out
+  }
+  const rowAt = (win, i) => win.querySelector(`:scope > [data-index="${i}"]`)
+  // Into a chat's composer, at the end of what is there, the way a paste lands (Orca's editor takes it as typed text)
+  function intoComposer(host, text) {
+    const ta = boxOf(host)?.querySelector(INPUT)
+    if (!ta) return false
+    ta.focus()
+    if (ta.tagName === 'TEXTAREA') {
+      ta.setRangeText(text, ta.value.length, ta.value.length, 'end')
+      ta.dispatchEvent(new Event('input', { bubbles: true }))
+      return true
+    }
+    const sel = getSelection()
+    const end = document.createRange()
+    end.selectNodeContents(ta)
+    end.collapse(false)
+    sel.removeAllRanges()
+    sel.addRange(end)
+    const before = ta.innerText
+    const dt = new DataTransfer()
+    dt.setData('text/plain', text)
+    ta.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }))
+    if (ta.innerText === before) document.execCommand('insertText', false, text)
+    return true
+  }
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true } catch {}
+    const t = el('textarea')
+    t.value = text
+    t.style.cssText = 'position:fixed;opacity:0;left:-9999px'
+    document.body.append(t)
+    t.select()
+    const ok = document.execCommand('copy')
+    t.remove()
+    return ok
+  }
+  function flash(btn, text) {
+    const was = btn.dataset.label ?? btn.textContent
+    btn.dataset.label = was
+    btn.textContent = text
+    clearTimeout(btn.__riceFlash)
+    btn.__riceFlash = setTimeout(() => { btn.textContent = was }, 1200)
+  }
+
+  // 1. Each finished turn ends with the files it changed (Edit, Write, MultiEdit, NotebookEdit calls), lines added and
+  // removed, each opening to its edits as a diff. 2. A plan put forward (ExitPlanMode) is drawn as a card
+  const EDITS = /^(Edit|Write|MultiEdit|NotebookEdit)$/
+  // Lines added and removed between two texts, by their changed middle (shared first and last lines set aside)
+  function delta(a, b) {
+    const x = a ? String(a).split('\n') : [], y = b ? String(b).split('\n') : []
+    let i = 0
+    while (i < x.length && i < y.length && x[i] === y[i]) i++
+    let j = 0
+    while (j < x.length - i && j < y.length - i && x[x.length - 1 - j] === y[y.length - 1 - j]) j++
+    return { del: x.slice(i, x.length - j), add: y.slice(i, y.length - j) }
+  }
+  function editsOf(name, input) {
+    const f = String(input?.file_path ?? input?.notebook_path ?? '')
+    if (!f) return []
+    if (name === 'Write') return [{ f, ...delta('', input.content), wrote: true }]
+    if (name === 'NotebookEdit') return [{ f, ...delta('', input.new_source) }]
+    if (name === 'MultiEdit') return (Array.isArray(input.edits) ? input.edits : []).map((e) => ({ f, ...delta(e?.old_string, e?.new_string) }))
+    return [{ f, ...delta(input.old_string, input.new_string) }]
+  }
+  const editsSeen = new WeakMap()
+  const editsOnce = (b) => { let v = editsSeen.get(b); if (!v) editsSeen.set(b, (v = editsOf(b.name, b.input))); return v }
+  const openCards = new Set()
+  function filesCard(key, files) {
+    const card = el('div', 'rice-files')
+    const head = el('button', 'rice-files-head')
+    head.type = 'button'
+    let add = 0, del = 0
+    for (const v of files.values()) { add += v.add; del += v.del }
+    head.append(el('span', 'rice-files-icon', '✎'), el('span', 'rice-files-title', `Changed ${files.size} file${files.size === 1 ? '' : 's'}`), el('span', 'rice-add', `+${add}`), el('span', 'rice-del', `−${del}`), el('span', 'rice-run-caret', '›'))
+    const list = el('div', 'rice-files-list')
+    for (const [f, v] of files) {
+      const item = el('div', 'rice-file')
+      const b = el('button', 'rice-file-head')
+      b.type = 'button'
+      const cut = f.lastIndexOf('/')
+      b.append(el('span', 'rice-file-name', f.slice(cut + 1)), el('span', 'rice-file-dir', cut > 0 ? f.slice(0, cut).replace(/^\/Users\/[^/]+/, '~') : ''), el('span', 'rice-add', `+${v.add}`), el('span', 'rice-del', `−${v.del}`))
+      const diff = el('pre', 'rice-diff')
+      let n = 0
+      for (const h of v.hunks) {
+        if (n > 0 && n < 120) diff.append(el('span', 'rice-diff-gap', '⋯\n'))
+        for (const l of h.del) { if (n++ < 120) diff.append(el('span', 'rice-diff-del', `- ${l}\n`)) }
+        for (const l of h.add) { if (n++ < 120) diff.append(el('span', 'rice-diff-add', `+ ${l}\n`)) }
+      }
+      if (n > 120) diff.append(el('span', 'rice-diff-gap', `… ${n - 120} more lines\n`))
+      const fk = `${key}|${f}`
+      const show = (open) => { b.setAttribute('aria-expanded', String(open)); diff.hidden = !open }
+      show(openCards.has(fk))
+      b.addEventListener('click', () => { const open = !openCards.has(fk); open ? openCards.add(fk) : openCards.delete(fk); show(open) })
+      item.append(b, diff)
+      list.append(item)
+    }
+    const show = (open) => { head.setAttribute('aria-expanded', String(open)); list.hidden = !open }
+    show(openCards.has(key))
+    head.addEventListener('click', () => { const open = !openCards.has(key); open ? openCards.add(key) : openCards.delete(key); show(open) })
+    card.append(head, list)
+    return card
+  }
+  function markTurns(c) {
+    if (!c.slots || !c.win) return
+    const turns = new Map()
+    c.slots.forEach((s, i) => {
+      const k = s?.turnKey
+      if (k === undefined || String(k).startsWith('pending')) return
+      let t = turns.get(k)
+      if (!t) turns.set(k, (t = { last: i, settled: false, files: new Map() }))
+      t.last = i
+      if (s.status && s.status.workedSeconds != null) t.settled = true
+      for (const b of s.message?.blocks ?? []) {
+        if (b?.type !== 'tool-call' || !b.input || typeof b.input !== 'object') continue
+        if (b.name === 'ExitPlanMode' && typeof b.input.plan === 'string') placePlan(c.win, i, b)
+        if (!EDITS.test(b.name ?? '')) continue
+        for (const e of editsOnce(b)) {
+          let v = t.files.get(e.f)
+          if (!v) t.files.set(e.f, (v = { add: 0, del: 0, hunks: [] }))
+          v.add += e.add.length
+          v.del += e.del.length
+          v.hunks.push(e)
+        }
+      }
+    })
+    for (const [k, t] of turns) {
+      const row = t.settled && t.files.size ? rowAt(c.win, t.last) : null
+      if (!row) continue
+      const sig = [...t.files].map(([f, v]) => `${f}:${v.add}:${v.del}`).join('|')
+      const had = row.querySelector(':scope > .rice-files')
+      if (had?.dataset.sig === sig) continue
+      had?.remove()
+      const card = filesCard(`${chatId(c.host)}|${k}`, t.files)
+      card.dataset.sig = sig
+      row.append(card)
+    }
+  }
+  function placePlan(win, i, b) {
+    const row = rowAt(win, i)
+    const id = String(b.callId ?? '')
+    if (!row || row.querySelector(`:scope > .rice-plan[data-id="${CSS.escape(id)}"]`)) return
+    const card = el('div', 'rice-plan')
+    card.dataset.id = id
+    card.append(el('div', 'rice-plan-head', 'Proposed plan'))
+    md(b.input.plan, card.appendChild(el('div', 'rice-plan-body min-w-0 max-w-full text-sm')))
+    row.append(card)
+  }
+
+  // 3. Code in the theme's colours: each code block (with its language from the block's header) is read into tokens
+  // and each kind painted through a CSS highlight over Orca's own text, so nothing in it is rewritten; read again
+  // only when its text changes, let go when it leaves the page
+  const HL = typeof CSS !== 'undefined' && !!CSS.highlights && typeof Highlight === 'function'
+  const HL_KINDS = ['kw', 'str', 'num', 'com', 'fn', 'prop', 'var', 'add', 'del', 'tag']
+  const marks = HL ? Object.fromEntries(HL_KINDS.map((k) => [k, new Highlight()])) : null
+  if (HL) for (const k of HL_KINDS) CSS.highlights.set(`rice-${k}`, marks[k])
+  const painted = new Map()
+  const words = (s) => `\\b(?:${s.split(' ').join('|')})\\b`
+  const STR = `"(?:\\\\.|[^"\\\\\\n])*"|'(?:\\\\.|[^'\\\\\\n])*'`
+  const NUM = '\\b(?:0x[\\da-fA-F]+|\\d[\\d_]*(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)\\b'
+  const FN = '\\b[A-Za-z_$][\\w$]*(?=\\s*\\()'
+  const KW = {
+    c: 'await break case catch class const continue default delete do else enum export extends false finally for from function if implements import in instanceof interface let new null of private protected public readonly return static super switch this throw true try type typeof undefined var void while yield async as fn let mut pub impl use mod struct trait match loop go func package defer chan map range nil guard self Self',
+    py: 'and as assert async await break class continue def del elif else except False finally for from global if import in is lambda None nonlocal not or pass raise return self True try while with yield',
+    sh: 'if then else elif fi for while until do done case esac in function return local export set unset readonly shift exit source alias',
+    sql: 'select from where and or not insert into values update set delete create table index drop alter join left right inner outer on group by order having limit as distinct union null is in like between SELECT FROM WHERE AND OR NOT INSERT INTO VALUES UPDATE SET DELETE CREATE TABLE INDEX DROP ALTER JOIN LEFT RIGHT INNER OUTER ON GROUP BY ORDER HAVING LIMIT AS DISTINCT UNION NULL IS IN LIKE BETWEEN',
+  }
+  const RULES = {
+    c: [['com', '\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/'], ['str', STR + '|`(?:\\\\.|[^`\\\\])*`'], ['num', NUM], ['kw', words(KW.c)], ['fn', FN], ['prop', '(?<=\\.)[A-Za-z_$][\\w$]*']],
+    py: [['com', '#[^\\n]*'], ['str', '"""[\\s\\S]*?"""|\'\'\'[\\s\\S]*?\'\'\'|' + STR], ['fn', '@[\\w.]+'], ['num', NUM], ['kw', words(KW.py)], ['fn', FN]],
+    sh: [['com', '(?<=^|\\s)#[^\\n]*'], ['str', STR], ['var', '\\$\\{[^}\\n]*\\}|\\$[A-Za-z_]\\w*|\\$[0-9@#?*!$-]'], ['prop', '(?<=\\s)--?[A-Za-z][\\w-]*'], ['kw', words(KW.sh)], ['num', NUM]],
+    json: [['prop', '"(?:\\\\.|[^"\\\\])*"(?=\\s*:)'], ['str', '"(?:\\\\.|[^"\\\\])*"'], ['num', '-?' + NUM], ['kw', '\\b(?:true|false|null)\\b']],
+    css: [['com', '\\/\\*[\\s\\S]*?\\*\\/'], ['str', STR], ['kw', '@[\\w-]+'], ['prop', '[\\w-]+(?=\\s*:[^{};]*[;}\\n])'], ['num', '#[\\da-fA-F]{3,8}\\b|-?\\d*\\.?\\d+(?:px|rem|em|%|vh|vw|s|ms|deg)?\\b'], ['fn', '[\\w-]+(?=\\()']],
+    html: [['com', '<!--[\\s\\S]*?-->'], ['tag', '<\\/?[A-Za-z][\\w:-]*|\\/?>'], ['prop', '[A-Za-z_:][\\w:.-]*(?==)'], ['str', STR]],
+    diff: [['kw', '^@@[^\\n]*'], ['add', '^\\+[^\\n]*'], ['del', '^-[^\\n]*'], ['com', '^(?:diff|index|---|\\+\\+\\+)[^\\n]*']],
+    yaml: [['com', '(?<=^|\\s)#[^\\n]*'], ['prop', '^[ \\t-]*[\\w.-]+(?=:)'], ['str', STR], ['kw', '\\b(?:true|false|null|yes|no)\\b'], ['num', NUM]],
+    sql: [['com', '--[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/'], ['str', STR], ['num', NUM], ['kw', words(KW.sql)], ['fn', FN]],
+  }
+  const compiled = {}
+  function family(lang) {
+    const l = lang.toLowerCase()
+    if (/^(sh|bash|zsh|shell|console|fish|terminal)/.test(l)) return 'sh'
+    if (/^(py|python)/.test(l)) return 'py'
+    if (/^(json|jsonc|jsonl)/.test(l)) return 'json'
+    if (/^(css|scss|less)/.test(l)) return 'css'
+    if (/^(html|xml|svg|vue|htm)/.test(l)) return 'html'
+    if (/^(diff|patch)/.test(l)) return 'diff'
+    if (/^(ya?ml|toml|ini)/.test(l)) return 'yaml'
+    if (/^sql/.test(l)) return 'sql'
+    return 'c'
+  }
+  function tokens2(text, lang) {
+    const f = family(lang)
+    let re = compiled[f]
+    if (!re) {
+      const rules = RULES[f]
+      re = compiled[f] = { re: new RegExp(rules.map(([, s]) => `(${s})`).join('|'), 'gm'), kinds: rules.map(([k]) => k) }
+    }
+    const out = []
+    re.re.lastIndex = 0
+    for (let m = re.re.exec(text); m; m = re.re.exec(text)) {
+      if (m[0] === '') { re.re.lastIndex++; continue }
+      const g = m.findIndex((x, i) => i > 0 && x !== undefined)
+      out.push([m.index, m.index + m[0].length, re.kinds[g - 1]])
+      if (out.length > 6000) break
+    }
+    return out
+  }
+  function paintCode() {
+    if (!HL) return
+    const seen = new Set()
+    for (const pre of document.querySelectorAll('[data-native-chat-root] [class~="group/code"] pre')) {
+      seen.add(pre)
+      const text = pre.textContent ?? ''
+      const sig = `${text.length}:${text.slice(-32)}`
+      const had = painted.get(pre)
+      if (had?.sig === sig) continue
+      if (had) for (const [k, r] of had.ranges) marks[k].delete(r)
+      const ranges = []
+      painted.set(pre, { sig, ranges })
+      if (text.length > 80000) continue
+      const head = pre.closest('[class~="group/code"]')?.firstElementChild
+      const lang = head && head !== pre ? (head.textContent ?? '').trim() : ''
+      const nodes = []
+      const walk = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT)
+      let off = 0
+      for (let n = walk.nextNode(); n; n = walk.nextNode()) { nodes.push([off, n]); off += n.data.length }
+      if (nodes.length === 0) continue
+      const at = (o) => { let lo = 0, hi = nodes.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (nodes[mid][0] <= o) lo = mid; else hi = mid - 1 } return nodes[lo] }
+      for (const [s, e, k] of tokens2(text, lang)) {
+        const [o1, n1] = at(s)
+        const [o2, n2] = at(e - 1)
+        const r = new Range()
+        r.setStart(n1, s - o1)
+        r.setEnd(n2, e - o2)
+        marks[k].add(r)
+        ranges.push([k, r])
+      }
+    }
+    for (const [pre, v] of painted) {
+      if (seen.has(pre) && pre.isConnected) continue
+      for (const [k, r] of v.ranges) marks[k].delete(r)
+      painted.delete(pre)
+    }
+  }
+
+  // 4. A copy button on each reply, shown on hover: the reply as written (its markdown), from Orca's own copy of it
+  function markCopy(c) {
+    if (!c.win) return
+    for (const row of c.win.children) {
+      const prose = row.querySelector('.select-text.leading-relaxed')
+      if (!prose || prose.querySelector(':scope > .rice-copy') || !prose.querySelector('p, li, pre, h1, h2, h3, table')) continue
+      const b = el('button', 'rice-copy', 'Copy')
+      b.type = 'button'
+      b.title = 'Copy this reply'
+      b.addEventListener('click', async (e) => {
+        e.stopPropagation()
+        const r = b.closest('[data-index]')
+        const list = r ? propsUp(r.parentElement, (p) => Array.isArray(p.slots), 3) : null
+        const text = msgText(list?.slots?.[Number(r.getAttribute('data-index'))]?.message) || prose.innerText
+        flash(b, (await copyText(text)) ? 'Copied' : 'Copy failed')
+      })
+      prose.append(b)
+    }
+  }
+
+  // 5. Images and diagrams open full size over the chat (a click anywhere or Escape closes)
+  let lightbox = null
+  function closeLightbox() { lightbox?.remove(); lightbox = null }
+  const onZoom = (e) => {
+    if (!chatOn() || e.button !== 0 || !(e.target instanceof Element)) return
+    const t = e.target.closest('[data-native-chat-root] img, [data-native-chat-root] .mermaid-block svg, [data-native-chat-root] .mermaid-block img')
+    if (!t || t.closest('button, a, .rice-lightbox') || t.getBoundingClientRect().width < 24) return
+    e.preventDefault()
+    e.stopPropagation()
+    closeLightbox()
+    lightbox = el('div', 'rice-lightbox')
+    const copy = t.cloneNode(true)
+    copy.removeAttribute('width')
+    copy.removeAttribute('height')
+    copy.removeAttribute('style')
+    copy.classList.add('rice-lightbox-item')
+    lightbox.append(copy)
+    lightbox.addEventListener('click', closeLightbox)
+    document.body.append(lightbox)
+  }
+  document.addEventListener('click', onZoom, true)
+
+  // 6. Text selected in a reply gets a small bar over it: Quote (into the composer as a quote), Ask (the quote with a
+  // question to finish or send) and Copy
+  let selBar = null
+  const quote = (t) => t.split('\n').map((l) => `> ${l}`).join('\n')
+  function hideSelBar() { selBar?.remove(); selBar = null }
+  function showSelBar() {
+    const s = getSelection()
+    const text = s && !s.isCollapsed ? s.toString().trim() : ''
+    const at = s?.anchorNode instanceof Element ? s.anchorNode : s?.anchorNode?.parentElement
+    const prose = at?.closest('[data-native-chat-root] .select-text')
+    if (!text || !prose || !prose.contains(s.focusNode)) { hideSelBar(); return }
+    const host = prose.closest('.native-chat-pane-shell, [data-structured-agent-session-overlay-tab-id]')
+    if (!host) { hideSelBar(); return }
+    const r = s.getRangeAt(0).getBoundingClientRect()
+    hideSelBar()
+    selBar = el('div', 'rice-selbar')
+    const act = (label, run) => { const b = el('button', 'rice-selbar-btn', label); b.type = 'button'; b.addEventListener('mousedown', (e) => e.preventDefault()); b.addEventListener('click', run); return b }
+    selBar.append(
+      act('Quote', () => { intoComposer(host, `${quote(text)}\n\n`); hideSelBar() }),
+      act('Ask', () => { intoComposer(host, `${quote(text)}\n\nCan you explain this part?`); hideSelBar() }),
+      act('Copy', async (e) => { flash(e.currentTarget, (await copyText(text)) ? 'Copied' : 'Copy failed'); setTimeout(hideSelBar, 700) }),
+    )
+    document.body.append(selBar)
+    selBar.style.left = `${Math.max(8, Math.min(r.left + r.width / 2 - selBar.offsetWidth / 2, innerWidth - selBar.offsetWidth - 8))}px`
+    selBar.style.top = `${Math.max(8, r.top - selBar.offsetHeight - 8)}px`
+  }
+  const onSelUp = (e) => { if (chatOn() && !selBar?.contains(e.target)) setTimeout(showSelBar, 0) }
+  const onSelDown = (e) => { if (selBar && !selBar.contains(e.target)) hideSelBar() }
+  const onSelScroll = () => hideSelBar()
+  document.addEventListener('mouseup', onSelUp, true)
+  document.addEventListener('mousedown', onSelDown, true)
+  addEventListener('scroll', onSelScroll, true)
+
+  // 7. A draft stash in the composer: a draft parked (and the composer cleared) with one click, the parked ones listed
+  // to bring back when the composer is empty (or on a right-click); kept in this window's storage, per chat
+  const stashKey = (host) => `rice-stash:${chatId(host)}`
+  const readStash = (k) => { try { const v = JSON.parse(localStorage.getItem(k) ?? '[]'); return Array.isArray(v) ? v.filter((x) => x && typeof x.t === 'string' && typeof x.at === 'number') : [] } catch { return [] } }
+  const writeStash = (k, v) => { try { v.length ? localStorage.setItem(k, JSON.stringify(v.slice(-20))) : localStorage.removeItem(k) } catch {} }
+  const stashes = new WeakMap()
+  function stashMenu(host, btn) {
+    const k = stashKey(host)
+    const list = readStash(k)
+    const items = list.slice().reverse().map((d) => ({ label: d.t.replace(/\s+/g, ' ').slice(0, 56) + (d.t.length > 56 ? '…' : ''), hint: ago(Date.now() - d.at) + ' ago',
+      run: () => { writeStash(k, readStash(k).filter((x) => x.at !== d.at)); intoComposer(host, d.t) } }))
+    if (list.length) items.push({ label: 'Clear all parked drafts', glyph: '×', run: () => writeStash(k, []) })
+    openMenu(btn, 'Parked drafts', items, list.length ? '' : 'Nothing parked yet. Type a draft, then click ⧉ to park it')
+  }
+  function markStash(c) {
+    const drop = boxOf(c.host)
+    const row = drop?.querySelector('.justify-between')
+    if (!row) return
+    const structured = c.host.hasAttribute('data-structured-agent-session-overlay-tab-id')
+    const into = structured ? row.querySelector(':scope > .ml-auto > :first-child') : row.firstElementChild
+    if (!into) return
+    let b = stashes.get(c.host)
+    if (!b) {
+      b = el('button', 'rice-stash')
+      b.type = 'button'
+      b.append(el('span', 'rice-stash-icon', '⧉'), el('span', 'rice-stash-n'))
+      b.addEventListener('click', () => {
+        const ta = boxOf(c.host)?.querySelector(INPUT)
+        const text = ta ? textOf(ta).trim() : ''
+        if (!text) { stashMenu(c.host, b); return }
+        const k = stashKey(c.host)
+        writeStash(k, [...readStash(k), { t: text, at: Date.now() }])
+        setText(b.lastElementChild, String(readStash(k).length))
+        ta.focus()
+        document.execCommand('selectAll', false)
+        document.execCommand('delete', false)
+      })
+      b.addEventListener('contextmenu', (e) => { e.preventDefault(); stashMenu(c.host, b) })
+      stashes.set(c.host, b)
+    }
+    if (b.parentElement !== into) into.append(b)
+    const n = readStash(stashKey(c.host)).length
+    setText(b.lastElementChild, n ? String(n) : '')
+    b.title = n ? `Park this draft (${n} parked; right-click to see them)` : 'Park this draft for later'
+  }
+
+  // 8. A new chat opens to a welcome: the project it works in and a few ways to begin, each put into the composer
+  const STARTERS = ['Catch me up on this project', 'What did we work on last time?', 'Review my uncommitted changes', 'Find something worth improving']
+  function markWelcome(c) {
+    const title = [...c.root.querySelectorAll('p.font-medium')].find((p) => /^Start a chat with /.test(p.textContent ?? ''))
+    const box = title?.parentElement
+    if (!box) return
+    setAttr(box, 'data-rice-welcome', '1')
+    if (box.querySelector(':scope > .rice-hero')) return
+    const where = (c.host.closest('[data-rendered-active-worktree-id]')?.getAttribute('data-rendered-active-worktree-id') ?? '').split('::')[1] ?? ''
+    const hero = el('div', 'rice-hero')
+    if (where) hero.append(el('div', 'rice-hero-where', `in ${where.split('/').filter(Boolean).pop()}`))
+    const chips = el('div', 'rice-hero-starters')
+    for (const s of STARTERS) {
+      const b = el('button', 'rice-hero-starter', s)
+      b.type = 'button'
+      b.addEventListener('click', () => intoComposer(c.host, s))
+      chips.append(b)
+    }
+    hero.append(chips)
+    box.append(hero)
+  }
+
+  let extrasAt = 0
+  function markExtras() {
+    for (const c of chatsOnScreen()) {
+      markTurns(c)
+      markCopy(c)
+      markStash(c)
+      markWelcome(c)
+    }
+    paintCode()
+  }
+
+  // Each tick while the chat extras are on: the turns, the composers and the raw rows at once, the comforts four times
+  // a second
+  let chatWas = false
+  function markChats() {
+    if (!chatOn()) {
+      if (chatWas) chatOff()
+      return
+    }
+    chatWas = true
+    markComposers()
+    hideNoise()
+    openTurns()
+    if (performance.now() - extrasAt > 250) { extrasAt = performance.now(); markExtras() }
+  }
+  // Everything the chat extras added, out again (chat off, or the look taken out). Turns opened stay as Orca now
+  // holds them
+  function chatOff() {
+    chatWas = false
+    closeMenu()
+    closeLightbox()
+    hideSelBar()
+    if (HL) for (const k of HL_KINDS) marks[k].clear()
+    painted.clear()
+    document.querySelectorAll('.rice-comet, .rice-files, .rice-plan, .rice-copy, .rice-stash, .rice-hero').forEach((e) => e.remove())
+    for (const a of ['data-rice-beat', 'data-rice-sctx', 'data-rice-noise', 'data-rice-welcome']) document.querySelectorAll(`[${a}]`).forEach((e) => e.removeAttribute(a))
+    document.documentElement.classList.remove('rice-blur')
   }
 
   // The cursor trail (Ghostty's scenes/fx/cursor-trail.glsl, here in 2D): xterm keeps its input box on the cursor's
@@ -810,6 +1708,8 @@ void main(){
     rowWatch.disconnect()
     liveWatch.disconnect()
     liveRow = null
+    chatOff()
+    document.querySelectorAll('[style*="--rice-d"]').forEach((e) => e.style.removeProperty('--rice-d'))
     document.querySelectorAll('[data-rice-new], [data-rice-in], [data-rice-opening]').forEach((e) => ['data-rice-new', 'data-rice-in', 'data-rice-opening'].forEach((a) => e.removeAttribute(a)))
     document.removeEventListener('keydown', onInput, true)
     document.removeEventListener('pointerdown', onInput, true)
@@ -850,6 +1750,7 @@ void main(){
     watchCursors()
     markWaiting()
     watchChats()
+    markChats()
     // A ripple runs at 30 frames a second; the rest of the time 10 is plenty
     const every = performance.now() < boostUntil ? 33 : 100
     if (timer && timerMs !== every) {
@@ -886,7 +1787,8 @@ void main(){
       if (gl === null) {
         err = 'no webgl2'
         dropCanvas()
-        payload = { mode: 'off', bg: payload.bg }
+        // Only the scene goes: the cards, the colours and the chat extras stay
+        payload = { ...payload, mode: 'off' }
         return
       }
     }
@@ -994,6 +1896,7 @@ void main(){
       sidebar,
       frame,
       cards,
+      chat: chatOn(),
       // Terminals whose text is wider than their tile (a refit Orca missed)
       overflow: [...document.querySelectorAll(`${HOST} .xterm`)].filter((x) => {
         const sc = x.querySelector('.xterm-screen')
@@ -1018,6 +1921,7 @@ void main(){
       payload.trail = !!(p && p.trail !== false)
       if (!(p && Array.isArray(p.signal) && p.signal.length === 3 && p.signal.every((c) => /^#[0-9a-f]{6}$/i.test(c)))) delete payload.signal
       payload.agents = !(p && p.agents === false)
+      payload.chat = !!(p && p.chat === true)
       payload.crt = p && typeof p.crt === 'number' && p.crt > 0 && p.crt <= 1 ? p.crt : 0
       if (payload.mode !== 'off') {
         // FNV-1a of the shader, so a new theme or strength rebuilds the program
@@ -1094,6 +1998,14 @@ void main(){
       clearTimeout(themingTimer)
       document.documentElement.classList.remove('rice-theming')
       teardown()
+      removeEventListener('pointerdown', onAway, true)
+      removeEventListener('keydown', onEscape, true)
+      document.removeEventListener('click', onTurnClick, true)
+      document.removeEventListener('click', onZoom, true)
+      document.removeEventListener('mouseup', onSelUp, true)
+      document.removeEventListener('mousedown', onSelDown, true)
+      removeEventListener('scroll', onSelScroll, true)
+      if (HL) for (const k of HL_KINDS) CSS.highlights.delete(`rice-${k}`)
       delete window.__riceScene
     },
   }

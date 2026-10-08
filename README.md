@@ -23,7 +23,11 @@ what changes, and how to undo it. Nothing happens until you say yes.
   Moving, dim, or one still frame (the lightest on your GPU).
 - **Floating cards**: the sidebar, each tab bar and every terminal pane as rounded tiles on the scene, the status
   bar as a pill, and the focused pane ringed in the theme's colours.
-- **A glassy chat view** that matches the terminals.
+- **A chat view to match**: Orca's chat views (terminal sessions shown as a chat, and Orca's own Claude and Codex
+  chats) in the theme's glass, plus a few comforts: every reply of a finished turn left open, each turn's changed
+  files with their diffs, plans as cards, code in the theme's colours, a copy button on each reply, image zoom,
+  Quote / Ask / Copy on selected text, a stash for drafts, a welcome for new chats, and a comet across the composer
+  while the agent works. `chat off` turns the comforts off.
 - **Agents light up the scene**: a glow while one works, amber when one is waiting on you, a ripple when one finishes.
 - **A theme per project**, if you like: each project's tabs bring their own theme.
 
@@ -70,6 +74,7 @@ bin/orca-rice theme retro-82             # another theme
 bin/orca-rice scene on|dim|still|off     # the scene
 bin/orca-rice shape cards|square         # floating cards, or Orca's own layout
 bin/orca-rice fx off                     # no cursor trail or CRT
+bin/orca-rice chat off                   # no extras in Orca's chat views
 bin/orca-rice doctor                     # what works, a line each
 bin/orca-rice uninstall                  # everything out, your settings back (Orca open)
 ```

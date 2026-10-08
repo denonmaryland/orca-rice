@@ -1,7 +1,7 @@
 # orca-rice: instructions for coding agents
 
 You are helping someone give their **Orca** app (the agent workspace by Stably, github.com/stablyai/orca) the
-orca-rice look: 22 themes, floating rounded cards, a pixel-art scene behind the terminals, and a glassy chat view.
+orca-rice look: 22 themes, floating rounded cards, a pixel-art scene behind the terminals, and a chat view to match.
 Codex, Claude Code and any other agent that reads `AGENTS.md` should follow this file.
 
 ## The rule: plan first, change nothing until they approve
@@ -37,6 +37,7 @@ What it writes or changes:
 | Orca's settings | terminal theme, terminal font (only if installed), the imported theme list, Background Opacity → 0 (so the scene shows through the terminal text), Left Sidebar → Match Terminal | `uninstall` puts back the copy saved in `~/.orca-rice/settings-backup.json` before the first change |
 | `~/.warp/themes/orca-rice-*.yaml` | 22 theme files, the format Orca's own "Import from Warp" reads (Warp lists them too, if they use Warp) | `uninstall` |
 | `~/.orca-rice/` | preferences, the data file, Orca's last report | `uninstall` |
+| Orca's window storage | only if they park a draft with the chat's stash button: the parked drafts | `uninstall` (or clearing them from the stash) |
 | `~/Library/LaunchAgents/local.orca-rice.ensure.plist` | only with `autostart on`: brings the look back within a minute after Orca restarts | `autostart off` or `uninstall` |
 | Fonts | only if they agree: the theme's free font from Homebrew | `brew uninstall --cask <font>` |
 
@@ -80,6 +81,11 @@ Silicon) with Orca 1.4.221; on other versions, go ahead when `check` says ready.
 - **Shape**: `cards` (floating rounded cards, the look in the screenshots) or `square` (Orca's own layout, scene
   behind the terminals only).
 - **Effects**: cursor trail, and scanlines on the two retro themes (on unless they say no; `--no-fx`).
+- **Chat extras** (on unless they say no; `--no-chat`): in Orca's chat views, every reply of a finished turn left
+  open, each turn's changed files, plans as cards, code colours, a copy button, image zoom, Quote / Ask / Copy on
+  selected text, a draft stash, a welcome for new chats, and a comet over the composer while the agent works. They
+  work from what Orca's window shows, and nothing is ever sent to an agent: Quote, Ask, the starters and the stash
+  only put text in the composer for them to send.
 - **Autostart**: Orca drops the look whenever it quits or updates. Yes means a small LaunchAgent; no means they run
   `bin/orca-rice ensure` after an Orca restart.
 - **Font**: only if the theme's font is not installed yet (`check` says, once the repo is there; `bin/orca-rice
@@ -90,7 +96,7 @@ Silicon) with Orca 1.4.221; on other versions, go ahead when `check` says ready.
 
 > **Your Orca:** macOS …, Orca … (running), Node … (or Orca's own), port 9229 free. The deeper check runs at step 2.
 >
-> **You chose:** theme …, scene …, shape …, effects …, autostart …, font ….
+> **You chose:** theme …, scene …, shape …, effects …, chat extras …, autostart …, font ….
 >
 > **I will:**
 > 1. `git clone https://github.com/denonmaryland/orca-rice ~/orca-rice`
@@ -122,6 +128,7 @@ to pick it up.
 | Scene moving, quieter, still or gone | `bin/orca-rice scene on\|dim\|still\|off` |
 | Cards or Orca's boxes | `bin/orca-rice shape cards\|square` |
 | No cursor trail or CRT | `bin/orca-rice fx off` |
+| Chat extras on or off | `bin/orca-rice chat on\|off` |
 | A theme per project | `bin/orca-rice project set /path/to/project <id>` |
 | The look is gone after Orca restarted | `bin/orca-rice ensure` (or `autostart on`) |
 | Something looks wrong, or Orca updated | `bin/orca-rice doctor`, then `bin/orca-rice repair` |

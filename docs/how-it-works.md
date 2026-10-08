@@ -51,6 +51,31 @@ The watcher lives in Orca's main process until Orca quits. It:
   sky; one waiting on you turns its tile amber; one that finishes sends a ripple.
 - **Chat view**: Orca's chat panes take the tile's tint, so the scene shows behind them as it does behind terminals.
 
+## The chat extras
+
+With `chat on` (the default), the layer also works in Orca's chat views: a terminal session Orca shows as a chat, and
+Orca's own Claude and Codex chats. It reads what the window already holds, Orca's elements and, for a few things, the
+data Orca's chat list keeps in its React props (each message's blocks, which turns are folded), and adds elements of
+its own beside Orca's:
+
+- every finished turn opened once (through the handler Orca's own "Worked for…" button calls, so turns scrolled out
+  of view open too; where that handler is not found, the buttons on screen are clicked); a turn closed by hand stays
+  closed;
+- each finished turn's changed files (from its Edit and Write calls) with lines added and removed, opening to a diff;
+  a plan put forward as a card;
+- code in the theme's colours, painted over Orca's text with CSS highlights, so the text itself is never rewritten;
+- a copy button on each reply, image and diagram zoom, Quote / Ask / Copy over selected text, a welcome with a few
+  starters for a new chat; Quote, Ask and the starters put text into the composer and send nothing;
+- a stash button in the composer that parks a draft (kept in the window's storage, per chat) and brings it back;
+- a comet across the composer's top edge while the agent works, mint as a turn lands;
+- in Orca's own chat agents: its model and effort pickers dressed as chips beside the attach button, the context
+  figures beside its ring, and two kinds of raw event row Orca prints for events it does not know yet hidden (repaint
+  and status signals, matched exactly; any other row, the session's opening notice included, still shows).
+
+Nothing is ever sent to an agent: Quote, Ask, the starters and the stash only put text in the composer. `chat off`
+takes all of these out again (turns already opened stay open until Orca draws that chat afresh). The chat view is where Orca
+changes most often, so it is a part of its own in `lib/compat.mjs`: if Orca changes it, only the chat extras pause.
+
 `dispose()` removes the canvas, the stylesheet and every attribute orca-rice added.
 
 ## Coming back after Orca restarts
@@ -64,5 +89,5 @@ putting back.
 
 `uninstall` (with Orca open) first removes the LaunchAgent and the data file, so nothing can put the look back while
 it comes out; then disposes the watcher and the layer, puts the saved settings back through Orca's settings channel
-(and stops, keeping everything, if that did not happen), removes the theme files in `~/.warp/themes`, and deletes
-orca-rice's own files in `~/.orca-rice`.
+(and stops, keeping everything, if that did not happen), clears the drafts parked with the chat's stash, removes the
+theme files in `~/.warp/themes`, and deletes orca-rice's own files in `~/.orca-rice`.

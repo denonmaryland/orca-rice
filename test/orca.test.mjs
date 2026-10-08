@@ -34,6 +34,16 @@ test('the layer parses, and the watcher accepts every scene mode and carries the
   assert.match(code, /\['on', 'dim', 'still', 'off'\]\.includes\(p\.mode\)/)
   assert.match(layer, /\['on', 'dim', 'still', 'off'\]\.includes\(p\.mode\)/)
   assert.doesNotMatch(layer, /logoLayer|LOGO_/)
+  // The chat switch reaches the layer, as data
+  assert.match(code, /chat: p\.chat === true/)
+  assert.match(layer, /payload\.chat = !!\(p && p\.chat === true\)/)
+})
+
+test("the layer leaves Orca's agent spinners turning, and carries nothing of anyone's own setup", () => {
+  const layer = readFileSync(join(ROOT, 'layer', 'rice-layer.js'), 'utf8')
+  // A transform on Orca's spinner overrides its spin: they stood still
+  assert.doesNotMatch(layer, /agent-working-spinner/)
+  assert.doesNotMatch(layer, /djm|status line|paneInfo|pty\.write/i)
 })
 
 test('only Background Opacity and the sidebar appearance can be set', () => {
@@ -44,14 +54,17 @@ test('only Background Opacity and the sidebar appearance can be set', () => {
 
 test('preferences fall back to sane values; the look file follows them', () => {
   assert.deepEqual(orca.prefs(), orca.DEFAULT_PREFS)
-  orca.setPrefs({ theme: 'nord', mode: 'still', shape: 'square', fx: false })
+  orca.setPrefs({ theme: 'nord', mode: 'still', shape: 'square', fx: false, chat: false })
   const p = orca.writeLook()
-  assert.deepEqual(p, { theme: 'nord', mode: 'still', shape: 'square', fx: false })
+  assert.deepEqual(p, { theme: 'nord', mode: 'still', shape: 'square', fx: false, chat: false })
   const look = JSON.parse(readFileSync(join(process.env.ORCA_RICE_DIR, 'look.json'), 'utf8'))
   assert.equal(look.theme, 'nord')
   assert.equal(look.mode, 'still')
   assert.equal(look.shape, 'square')
   assert.equal(look.trail, false)
+  assert.equal(look.chat, false)
+  orca.setPrefs({ chat: 'yes' })
+  assert.equal(orca.prefs().chat, true)
   orca.setPrefs({ theme: 'no-such-theme', mode: 'loud' })
   assert.equal(orca.prefs().theme, 'ethereal')
   assert.equal(orca.prefs().mode, 'on')
@@ -73,7 +86,9 @@ test('project themes: a folder maps to a theme, with no font in its look', () =>
 
 test('a report from an older watcher is said plainly, never read as success', () => {
   assert.match(orca.describe({ v: 0, window: { mode: 'on', drawn: true } }), /older watcher/)
-  assert.match(orca.describe({ v: orca.WATCHER_V, window: { mode: 'still', theme: 'nord', drawn: true, cards: true } }), /nord scene drawn \(still\); floating cards/)
+  assert.match(orca.describe({ v: orca.WATCHER_V, window: { mode: 'still', theme: 'nord', drawn: true, cards: true } }), /nord scene drawn \(still\); floating cards$/)
+  assert.match(orca.describe({ v: orca.WATCHER_V, window: { mode: 'on', theme: 'nord', drawn: true, cards: true, chat: true } }), /floating cards; chat extras$/)
+  assert.match(orca.describe({ v: orca.WATCHER_V, window: { mode: 'off', chat: true } }), /scene off, chat extras$/)
 })
 
 test('Warp theme files: one per theme, removed again, nothing else touched', () => {
@@ -90,7 +105,14 @@ test('the Orca check: every hook found means every part on; a missing one pauses
   const all = { main: '', preload: '', renderer: '' }
   for (const h of ORCA_HOOKS) all[h.in] += typeof h.find === 'string' ? ` ${h.find} ` : ' trafficLightPosition:{x:16,y:12} setWindowButtonPosition({x:16,y:a}) Math.round(18*z-6) '
   const ok = checkOrca({ fuses: '101100011', ...all })
-  assert.deepEqual([ok.door, ok.scene, ok.cards, ok.theme, ok.lights], [true, true, true, true, true])
+  assert.deepEqual([ok.door, ok.scene, ok.cards, ok.theme, ok.lights, ok.chat], [true, true, true, true, true, true])
+  // The chat view changed: only the chat extras pause; a minor chat hook gone costs only its detail
+  const noChat = checkOrca({ fuses: '101100011', ...all, renderer: all.renderer.replace('data-native-chat-root', '') })
+  assert.deepEqual([noChat.scene, noChat.cards, noChat.theme, noChat.chat], [true, true, true, false])
+  assert.match(describeCompat('9.9.9', noChat), /the chat extras paused \(Orca changed chat view/)
+  const noToggle = checkOrca({ fuses: '101100011', ...all, renderer: all.renderer.replace('onToggleExpandedTurn', '') })
+  assert.equal(noToggle.chat, true)
+  assert.ok(noToggle.minor.some((m) => m.what.startsWith('opening turns')))
   const noHost = checkOrca({ fuses: '101100011', ...all, renderer: all.renderer.replace('data-retained-pane-host', '') })
   assert.equal(noHost.scene, false)
   assert.equal(noHost.cards, false)

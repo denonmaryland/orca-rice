@@ -27,7 +27,7 @@ Look before changing anything
   doctor                     everything, a line each, after an Orca update or when something looks off
 
 Set up and take down
-  install [--theme <id>] [--scene on|dim|still|off] [--shape cards|square] [--no-fx] [--keep-settings]
+  install [--theme <id>] [--scene on|dim|still|off] [--shape cards|square] [--no-fx] [--no-chat] [--keep-settings]
   uninstall [--keep-settings]   takes the look out and puts your earlier Orca settings back
   repair                     puts the look in afresh (after updating orca-rice, or when doctor says so)
   autostart on|off|status    bring the look back on its own after Orca restarts (a macOS LaunchAgent)
@@ -37,6 +37,7 @@ Change the look
   scene on|dim|still|off     the pixel scene: moving, quieter, one still frame (lightest), or none
   shape cards|square         floating rounded cards, or Orca's own boxes
   fx on|off                  the cursor trail, and the retro themes' CRT
+  chat on|off                the extras in Orca's chat views (changed files, plan cards, code colours, copy, ...)
   project set <folder> <id> | project clear <folder> | project list   a theme per project
   fonts [--all]              the Homebrew command for the theme's font (installs nothing)
   ensure                     put the look back if Orca restarted (what autostart runs)`
@@ -105,12 +106,12 @@ function checkReport() {
     r.ok = false
     r.problems.push(`Orca was not found at ${APP}`)
   } else {
-    r.orca = { ...r.orca, version: c.version, running: orcaPid() !== null, door: c.door, scene: c.scene, cards: c.cards, theme: c.theme, lights: c.lights,
+    r.orca = { ...r.orca, version: c.version, running: orcaPid() !== null, door: c.door, scene: c.scene, cards: c.cards, theme: c.theme, lights: c.lights, chat: c.chat,
       missing: c.missing.map((m) => `${m.part}: ${m.what}`), minor: c.minor.map((m) => m.what), summary: describeCompat(c.version, c, 'installed') }
     if (!c.door) {
       r.ok = false
       r.problems.push(r.orca.summary)
-    } else if (!(c.scene && c.cards && c.theme && c.lights)) r.notes.push(r.orca.summary)
+    } else if (!(c.scene && c.cards && c.theme && c.lights && c.chat)) r.notes.push(r.orca.summary)
     if (!r.orca.running) r.notes.push('Orca is not running: install needs it open')
     r.orca.builtInNode = c.fuses.length > RUN_AS_NODE_FUSE ? c.fuses[RUN_AS_NODE_FUSE] === '1' : null
     let p = null
@@ -147,7 +148,7 @@ function printCheck(r) {
   say(true, `macOS ${r.macosVersion ?? ''}`.trim())
   if (!r.orca.found) say(false, `Orca not found at ${r.orca.app}`)
   else {
-    say(r.orca.door && r.orca.scene && r.orca.cards && r.orca.theme && r.orca.lights, r.orca.summary)
+    say(r.orca.door && r.orca.scene && r.orca.cards && r.orca.theme && r.orca.lights && r.orca.chat, r.orca.summary)
     say(r.orca.running, r.orca.running ? 'Orca is running' : 'Orca is not running (install needs it open)')
   }
   say(true, `runs on ${r.runtime.runtime} ${r.runtime.version}`)
@@ -223,6 +224,7 @@ async function main() {
       patch.shape = shape
     }
     if (flag(args, '--no-fx')) patch.fx = false
+    if (flag(args, '--no-chat')) patch.chat = false
     preflight()
     const p = setPrefs(patch)
     out(`themes written for Orca to import: ${writeWarpThemes()} (~/.warp/themes/orca-rice-*.yaml)`)
@@ -266,6 +268,12 @@ async function main() {
     return changed(`effects ${args[0]}`)
   }
 
+  if (cmd === 'chat') {
+    if (args[0] !== 'on' && args[0] !== 'off') throw new Error('usage: orca-rice chat on|off')
+    setPrefs({ chat: args[0] === 'on' })
+    return changed(`chat extras ${args[0]}`)
+  }
+
   if (cmd === 'project') {
     const [how, folder, id] = args
     if (how === 'list') {
@@ -291,7 +299,7 @@ async function main() {
 
   if (cmd === 'status') {
     const p = prefs()
-    out(enabled() ? `installed: ${p.theme}, scene ${p.mode}, ${p.shape}, effects ${p.fx ? 'on' : 'off'}` : 'not installed')
+    out(enabled() ? `installed: ${p.theme}, scene ${p.mode}, ${p.shape}, effects ${p.fx ? 'on' : 'off'}, chat extras ${p.chat ? 'on' : 'off'}` : 'not installed')
     const pid = orcaPid()
     const s = statusOf()
     out(pid === null ? 'Orca is not running' : s && s.pid === pid ? describe(s) : 'Orca is running without the look (orca-rice ensure)')
